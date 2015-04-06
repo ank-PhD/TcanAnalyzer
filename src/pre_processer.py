@@ -14,7 +14,10 @@ from sklearn.gaussian_process import GaussianProcess
 import pickle
 from configs import Locations, base_folder_name
 
-#TODO: debug the over-regression
+# TODO: debug the over-regression
+# TODO: use cummulative growth speed to prevent too quick of the regression
+# TODO: incorporate pad plotting
+
 
 tinit = time()
 mlb.rcParams['font.size'] = 10.0
@@ -165,6 +168,8 @@ def gaussian_process_regress(timeseries, std, timestamps=None, show=False):
 
     def show_routine():
         plt.figure()
+
+        ax1 = plt.subplot(2, 2, 1)
         plt.errorbar(timestamps.ravel(), timeseries, errors, fmt='r.', markersize=10, label=u'Observations')
         plt.plot(pre_timestamps, y_pred, 'b-', label=u'Prediction')
         plt.fill(np.concatenate([pre_timestamps, pre_timestamps[::-1]]),
@@ -174,6 +179,29 @@ def gaussian_process_regress(timeseries, std, timestamps=None, show=False):
         plt.xlabel('$x$')
         plt.ylabel('$f(x)$')
         plt.legend(loc='upper left')
+
+        plt.subplot(2, 2, 2, sharex=ax1)
+        l2_growth = np.log(timeseries.ravel()[1:]/timeseries.ravel()[:-1])/np.log(2)/(timestamps[1:]-timestamps[:-1]).ravel()
+        pred_l2_growth = np.log(y_pred.ravel()[1:]/y_pred.ravel()[:-1])/np.log(2)/(pre_timestamps[1:]-pre_timestamps[:-1]).ravel()
+        plt.plot(timestamps[1:], l2_growth, 'r.',  label=u'Observations')
+        plt.plot(pre_timestamps[1:], pred_l2_growth,  label=u'Prediction')
+        plt.yscale('log')
+
+        plt.subplot(2, 2, 3, sharex=ax1)
+        l2_growth = 60/(np.log(timeseries.ravel()[1:]/timeseries.ravel()[:-1])/np.log(2)/(timestamps[1:]-timestamps[:-1]).ravel())
+        pred_l2_growth = 60/(np.log(y_pred.ravel()[1:]/y_pred.ravel()[:-1])/np.log(2)/(pre_timestamps[1:]-pre_timestamps[:-1]).ravel())
+        l2_growth[np.abs(l2_growth) > 300] = np.nan
+        pred_l2_growth[np.abs(pred_l2_growth) > 300] = np.nan
+        plt.plot(timestamps[1:], l2_growth, 'r.',  label=u'Observations')
+        plt.plot(pre_timestamps[1:], pred_l2_growth,  label=u'Prediction')
+
+        plt.subplot(2, 2, 4, sharex=ax1)
+        l2_growth = 60/(np.log(timeseries.ravel()[1:]/timeseries.ravel()[1])/np.log(2)/(timestamps[1:]-timestamps[1]).ravel())
+        pred_l2_growth = 60/(np.log(y_pred.ravel()[1:]/y_pred.ravel()[1])/np.log(2)/(pre_timestamps[1:]-pre_timestamps[1]).ravel())
+        l2_growth[np.abs(l2_growth) > 300] = np.nan
+        pred_l2_growth[np.abs(pred_l2_growth) > 300] = np.nan
+        plt.plot(timestamps[1:], l2_growth, 'r.',  label=u'Observations')
+        plt.plot(pre_timestamps[1:], pred_l2_growth,  label=u'Prediction')
 
         plt.show()
 
@@ -192,8 +220,8 @@ def gaussian_process_regress(timeseries, std, timestamps=None, show=False):
     errors[errors < std] = std
     nugget = np.power((errors), 2)
 
-    gp = GaussianProcess(regr='linear', corr='squared_exponential', theta0=10,
-                            thetaL=1e-1, thetaU=100,
+    gp = GaussianProcess(regr='linear', corr='squared_exponential', theta0=1,
+                            thetaL=1e-2, thetaU=10,
                             nugget=nugget,
                             random_start=100)
 
@@ -214,7 +242,10 @@ def gaussian_process_regress(timeseries, std, timestamps=None, show=False):
 def gaussian_process_wrapper(bulk_arguments):
     i, j, pl, std = bulk_arguments
     print 'loess', i, j
-    return (i, j), gaussian_process_regress(pl, std)
+    if i < 1 or j < 1:
+        return (i, j), gaussian_process_regress(pl, std)
+    else:
+        return (i, j), gaussian_process_regress(pl, std, show=True)
 
 
 def map_adapter(plate, std):
@@ -225,7 +256,7 @@ def map_adapter(plate, std):
 def generate_reference_mask(plate):
 
     def extracted_growth_detector(_1D_array):
-        return (np.percentile(_1D_array, 97.5) - np.percentile(_1D_array, 2.5)) < 0.10
+        return np.percentile(_1D_array, 99.5) - np.percentile(_1D_array, 0.5) < 0.2
 
     ref_mask = np.zeros((8, 12)).astype(np.bool)
     ref_mask[:, 0] = True
@@ -233,8 +264,12 @@ def generate_reference_mask(plate):
     ref_mask[0, :] = True
     ref_mask[7, :] = True
 
-    growth_detected = np.apply_along_axis(extracted_growth_detector, 0, plate)
-    ref_mask = np.logical_and(ref_mask, growth_detected)
+    growth_not_detected = np.apply_along_axis(extracted_growth_detector, 0, plate)
+    ref_mask = np.logical_and(ref_mask, growth_not_detected)
+    medians = np.apply_along_axis(np.median, 0, plate)
+    main_median = np.median(medians[ref_mask])
+    means_not_off = np.abs(medians - main_median) < 0.02
+    ref_mask = np.logical_and(ref_mask, means_not_off)
     timed_ref_mask = np.repeat(ref_mask[np.newaxis, :, :], plate.shape[0], axis=0)
 
     return timed_ref_mask
@@ -242,9 +277,10 @@ def generate_reference_mask(plate):
 
 def loess(plate):
     refsample = plate_3D_array[generate_reference_mask(plate)]
-    std = np.std(refsample)
+    std = 3*np.std(refsample)
 
-    plate = plate - np.percentile(refsample[refsample > 0.0001], 0.5)
+    plate = plate - np.min(refsample[refsample > 0.0001])
+
     re_plate = plate.copy()
     fine_tune = np.percentile(refsample[refsample > 0.0001], 1)
 

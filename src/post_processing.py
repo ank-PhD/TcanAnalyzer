@@ -157,6 +157,7 @@ def regress_variability(division_speed, name_pad):
     division_speed = (division_speed / np.median(division_speed) - 1)*100
     plt.imshow(division_speed, interpolation='nearest')
     plt.colorbar()
+    plt.savefig(Locations['output']['plate'], dpi=300)
     plt.show()
 
 
@@ -164,6 +165,7 @@ if __name__ == "__main__":
     # l2_dist(current_stack)
     # l2_growth_difference(growth_speed)
     # l2_dist(current_stack, group_pad=True)
+    # l2_growth_difference(growth_speed, group_pad=False)
     # l2_growth_difference(growth_speed, group_pad=True)
     group_by()
-    regress_variability(growth_speed, pad)
+    # regress_variability(growth_speed, pad)
