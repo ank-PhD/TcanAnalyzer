@@ -18,14 +18,15 @@ from configs import Locations, base_folder_name
 # TODO: use cummulative growth speed to prevent too quick of the regression
 # TODO: incorporate pad plotting
 
+debug = True
 
 tinit = time()
 mlb.rcParams['font.size'] = 10.0
 mlb.rcParams['figure.figsize'] = (30, 20)
 
-file_location = 'U:/ank/2015/TcanScreen/03.26.2015/GertonLabTcan/'
-file_name = 'Book1.xlsx'
-pad_location = 'U:/ank/2015/TcanScreen/03.26.2015/'
+file_location = 'U:/ank/2015/TcanScreen/03.26.2015/OurTCAN/'
+file_name = 'Book1.xls'
+pad_location = 'U:/ank/2015/TcanScreen/03.26.2015'
 pad_name = 'pad.xlsx'
 d_time = 15./60.
 
@@ -242,10 +243,13 @@ def gaussian_process_regress(timeseries, std, timestamps=None, show=False):
 def gaussian_process_wrapper(bulk_arguments):
     i, j, pl, std = bulk_arguments
     print 'loess', i, j
-    if i < 1 or j < 1:
+    if not debug:
         return (i, j), gaussian_process_regress(pl, std)
-    else:
-        return (i, j), gaussian_process_regress(pl, std, show=True)
+    if debug:
+        if i < 1 or j < 1:
+            return (i, j), gaussian_process_regress(pl, std)
+        else:
+            return (i, j), gaussian_process_regress(pl, std, show=True)
 
 
 def map_adapter(plate, std):
