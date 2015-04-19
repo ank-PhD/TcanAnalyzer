@@ -14,9 +14,12 @@ from sklearn.gaussian_process import GaussianProcess
 import pickle
 from configs import Locations, base_folder_name
 
-# TODO: debug the over-regression
 # TODO: use cummulative growth speed to prevent too quick of the regression
 # TODO: incorporate pad plotting
+
+# TODO: Calculate the lag time as the difference in time that it took to reach the fastest growing point and the time it
+#    would have taken if the yeast was growing from the initial OD to the OD at the fastest point at the top speed.
+# TODO: incorporate the non-linearity correction of the growth data and calibrate it on the cummulative growth curve plot
 
 debug = True
 
