@@ -7,7 +7,8 @@ Locations = {'dump':{
                     'raw': os.path.join(base_folder_name, 'dumps/raw.dmp'),
                     'log': os.path.join(base_folder_name, 'dumps/log.dmp'),
                     'grad': os.path.join(base_folder_name, 'dumps/grad.dmp'),
-                    'times': os.path.join(base_folder_name, 'dumps/times.dmp')
+                    'times': os.path.join(base_folder_name, 'dumps/times.dmp'),
+                    'corrfunct': os.path.join(base_folder_name, 'dumps/corrfunct.dmp')
                     },
              'output':{
                     'raw': os.path.join(base_folder_name, 'outputs/raw.png'),

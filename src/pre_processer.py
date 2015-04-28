@@ -13,28 +13,34 @@ from string import ascii_lowercase
 from sklearn.gaussian_process import GaussianProcess
 import pickle
 from configs import Locations, base_folder_name
+from src.CalibrateTCAN import load_corrector
 
 # TODO: use cummulative growth speed to prevent too quick of the regression
 # TODO: incorporate pad plotting
 
 # TODO: Calculate the lag time as the difference in time that it took to reach the fastest growing point and the time it
 #    would have taken if the yeast was growing from the initial OD to the OD at the fastest point at the top speed.
-# TODO: incorporate the non-linearity correction of the growth data and calibrate it on the cummulative growth curve plot
 
-debug = True
+# TODO: import a exponential fitting module from the analysis that was used in the Jin's historical data
+
+# TODO: debug the bump appearance in the early stages => DONE; the problem is in the original data.
+# SLOPE: use more than 6 points used to compute the slope => Problem; it over-smoothes it and changes the precision of slope estimate
+
+# TODO: create an OD block, where the OD variation is too likely to lead to a perturbed division speed, exclude it from the possible location where the OD gradient can be calculated
+
+debug = False
 
 tinit = time()
 mlb.rcParams['font.size'] = 10.0
 mlb.rcParams['figure.figsize'] = (30, 20)
 
-file_location = 'U:/ank/2015/TcanScreen/03.26.2015/OurTCAN/'
-file_name = 'Book1.xls'
+file_location = 'U:/ank/2015/TcanScreen/04.27.2015'
+file_name = 'Book1.xlsx'
 pad_location = 'U:/ank/2015/TcanScreen/03.26.2015'
 pad_name = 'pad.xlsx'
 d_time = 15./60.
 
 time_map = defaultdict(int)
-
 
 def extract_plate(a1_coordinates, sheet, string=False):
     plate = np.zeros((8, 12))
@@ -94,8 +100,9 @@ def plot_growth(plates_stack, grad=False, dumpType=None, NoShow=False):
         fig = plt.subplot(8, 12, i*12+j+1)
         data = plates_stack[:, i, j]
         if grad:
-            current_speed = (float(d_time/np.max(data)*60))
-            current_time = (d_time*np.argmax(data)-(d_time/np.max(data)*3))
+            current_speed = (float(d_time/np.sort(data)[-4]*60))
+            # current_time = (d_time*np.argmax(data)-(d_time/np.max(data)*3))
+            current_time = d_time*np.argsort(data)[-4]
             plt.title('%s, %s' % ('{0:.0f}'.format(current_speed),
                                   '{0:.2f}'.format(current_time)))
             speeds[i, j] = current_speed
@@ -174,38 +181,48 @@ def gaussian_process_regress(timeseries, std, timestamps=None, show=False):
         plt.figure()
 
         ax1 = plt.subplot(2, 2, 1)
+        plt.title('OD measurement')
         plt.errorbar(timestamps.ravel(), timeseries, errors, fmt='r.', markersize=10, label=u'Observations')
-        plt.plot(pre_timestamps, y_pred, 'b-', label=u'Prediction')
+        plt.plot(pre_timestamps, y_pred, 'b-', label=u'Regression')
         plt.fill(np.concatenate([pre_timestamps, pre_timestamps[::-1]]),
                                 np.concatenate([y_pred - 1.9600 * sigma,
                                 (y_pred + 1.9600 * sigma)[::-1]]),
                                 alpha=.5, fc='b', ec='None', label='95% confidence interval')
-        plt.xlabel('$x$')
-        plt.ylabel('$f(x)$')
+        plt.xlabel('Time (hours)')
+        plt.ylabel('OD')
         plt.legend(loc='upper left')
 
         plt.subplot(2, 2, 2, sharex=ax1)
+        plt.title('Division speed')
         l2_growth = np.log(timeseries.ravel()[1:]/timeseries.ravel()[:-1])/np.log(2)/(timestamps[1:]-timestamps[:-1]).ravel()
         pred_l2_growth = np.log(y_pred.ravel()[1:]/y_pred.ravel()[:-1])/np.log(2)/(pre_timestamps[1:]-pre_timestamps[:-1]).ravel()
         plt.plot(timestamps[1:], l2_growth, 'r.',  label=u'Observations')
-        plt.plot(pre_timestamps[1:], pred_l2_growth,  label=u'Prediction')
+        plt.plot(pre_timestamps[1:], pred_l2_growth,  label=u'Regression')
         plt.yscale('log')
+        plt.xlabel('Time (hours)')
+        plt.ylabel('time to divide (minutes)')
 
         plt.subplot(2, 2, 3, sharex=ax1)
+        plt.title('Instantaneous doubling time')
         l2_growth = 60/(np.log(timeseries.ravel()[1:]/timeseries.ravel()[:-1])/np.log(2)/(timestamps[1:]-timestamps[:-1]).ravel())
         pred_l2_growth = 60/(np.log(y_pred.ravel()[1:]/y_pred.ravel()[:-1])/np.log(2)/(pre_timestamps[1:]-pre_timestamps[:-1]).ravel())
         l2_growth[np.abs(l2_growth) > 300] = np.nan
         pred_l2_growth[np.abs(pred_l2_growth) > 300] = np.nan
         plt.plot(timestamps[1:], l2_growth, 'r.',  label=u'Observations')
-        plt.plot(pre_timestamps[1:], pred_l2_growth,  label=u'Prediction')
+        plt.plot(pre_timestamps[1:], pred_l2_growth,  label=u'Regression')
+        plt.xlabel('Time (hours)')
+        plt.ylabel('time to divide (minutes)')
 
         plt.subplot(2, 2, 4, sharex=ax1)
+        plt.title('Cummulative doubling time')
         l2_growth = 60/(np.log(timeseries.ravel()[1:]/timeseries.ravel()[1])/np.log(2)/(timestamps[1:]-timestamps[1]).ravel())
         pred_l2_growth = 60/(np.log(y_pred.ravel()[1:]/y_pred.ravel()[1])/np.log(2)/(pre_timestamps[1:]-pre_timestamps[1]).ravel())
         l2_growth[np.abs(l2_growth) > 300] = np.nan
         pred_l2_growth[np.abs(pred_l2_growth) > 300] = np.nan
         plt.plot(timestamps[1:], l2_growth, 'r.',  label=u'Observations')
         plt.plot(pre_timestamps[1:], pred_l2_growth,  label=u'Prediction')
+        plt.xlabel('$Time (hours)$')
+        plt.ylabel('$division per hour$')
 
         plt.show()
 
@@ -214,7 +231,7 @@ def gaussian_process_regress(timeseries, std, timestamps=None, show=False):
 
     pre_timestamps = timestamps.copy()
 
-    keep_mask = timeseries > 0.0001
+    keep_mask = timeseries > 0.001
     timestamps = timestamps[:, 0][keep_mask][:, np.newaxis]
     timeseries = timeseries[keep_mask]
 
@@ -236,7 +253,7 @@ def gaussian_process_regress(timeseries, std, timestamps=None, show=False):
     if show:
         show_routine()
 
-    elif np.any(y_pred < 0.00001):
+    elif np.any(y_pred < 0.001):
         # show_routine()
         pass
 
@@ -260,10 +277,10 @@ def map_adapter(plate, std):
          yield i, j, plate[:, i, j], std
 
 
-def generate_reference_mask(plate):
+def generate_reference_mask(plate_2):
 
     def extracted_growth_detector(_1D_array):
-        return np.percentile(_1D_array, 99.5) - np.percentile(_1D_array, 0.5) < 0.2
+        return np.percentile(_1D_array, 99.5) - np.percentile(_1D_array, 0.5) < 2
 
     ref_mask = np.zeros((8, 12)).astype(np.bool)
     ref_mask[:, 0] = True
@@ -271,30 +288,44 @@ def generate_reference_mask(plate):
     ref_mask[0, :] = True
     ref_mask[7, :] = True
 
-    growth_not_detected = np.apply_along_axis(extracted_growth_detector, 0, plate)
+    growth_not_detected = np.apply_along_axis(extracted_growth_detector, 0, plate_2)
     ref_mask = np.logical_and(ref_mask, growth_not_detected)
-    medians = np.apply_along_axis(np.median, 0, plate)
+    medians = np.apply_along_axis(np.median, 0, plate_2)
     main_median = np.median(medians[ref_mask])
-    means_not_off = np.abs(medians - main_median) < 0.02
+    means_not_off = np.abs(medians - main_median) < 0.2
     ref_mask = np.logical_and(ref_mask, means_not_off)
-    timed_ref_mask = np.repeat(ref_mask[np.newaxis, :, :], plate.shape[0], axis=0)
+    timed_ref_mask = np.repeat(ref_mask[np.newaxis, :, :], plate_2.shape[0], axis=0)
 
     return timed_ref_mask
 
 
+def fine_tune(plate_1, tune):
+    # print 11, np.min(plate_1)
+    plate_1[plate_1 < tune] = tune
+    # print 12, np.min(plate_1)
+    return plate_1
+
+
 def loess(plate):
     refsample = plate_3D_array[generate_reference_mask(plate)]
-    std = 3*np.std(refsample)
+    std = 10*np.std(refsample)
 
-    plate = plate - np.min(refsample[refsample > 0.0001])
+    # f_tune = np.percentile(refsample[refsample > 0], 1)
+    # print 1, f_tune
+    plate = plate - np.min(refsample)
+    plate = fine_tune(plate, 0.0001)
 
     re_plate = plate.copy()
-    fine_tune = np.percentile(refsample[refsample > 0.0001], 1)
+
+    # print 3,  np.min(re_plate)
 
     retset = map(gaussian_process_wrapper, map_adapter(plate, std))
     for ((i, j), (ret, _)) in retset:
         re_plate[:, i, j] = ret
-    re_plate[re_plate < fine_tune] = fine_tune
+    fine_tune(re_plate, 0.0001)
+
+    # print 4,  np.min(re_plate)
+
     return re_plate
 
 
@@ -308,6 +339,12 @@ def smooth_and_interpolate(plate):
 
 
 def del_exception(plate, position):
+    """
+    deletes a position and replaces it by an interpolation
+    :param plate:
+    :param position:
+    :return:
+    """
     new_plate = np.zeros((plate.shape[0]-1, plate.shape[1], plate.shape[2]))
     new_plate[:position, :, :] = plate[:position, :, :]
     print position
@@ -316,9 +353,15 @@ def del_exception(plate, position):
 
 
 def del_range(plate, positionList):
-    for position in positionList:
+    for position in sorted(positionList, reverse=True):
         plate = del_exception(plate, position)
     return plate
+
+
+def correct_ODs(plate_3D_array):
+    corrector = load_corrector()
+    vect_corrector = np.vectorize(corrector)
+    return  vect_corrector(plate_3D_array)
 
 
 if __name__ == "__main__":
@@ -327,6 +370,9 @@ if __name__ == "__main__":
     intermediate_show = True
     read_pad(pad_pth)
     plate_3D_array = extract_plate_dit(path)
+    plate_3D_array = del_exception(plate_3D_array, 18)
+    plate_3D_array = del_exception(plate_3D_array, 11)
+    plate_3D_array = correct_ODs(plate_3D_array)
     plate_3D_array = smooth_and_interpolate(plate_3D_array)
 
     # plate_3D_array = smooth_plate(plate_3D_array, 2)
