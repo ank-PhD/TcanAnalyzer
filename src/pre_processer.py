@@ -28,14 +28,14 @@ from src.CalibrateTCAN import load_corrector
 
 # TODO: create an OD block, where the OD variation is too likely to lead to a perturbed division speed, exclude it from the possible location where the OD gradient can be calculated
 
-debug = False
+debug = True
 
 tinit = time()
 mlb.rcParams['font.size'] = 10.0
 mlb.rcParams['figure.figsize'] = (30, 20)
 
-file_location = 'U:/ank/2015/TcanScreen/04.27.2015'
-file_name = 'Book1.xlsx'
+file_location = 'U:/ank/2015/TcanScreen/03.26.2015/OurTcan'
+file_name = 'Book1.xls'
 pad_location = 'U:/ank/2015/TcanScreen/03.26.2015'
 pad_name = 'pad.xlsx'
 d_time = 15./60.

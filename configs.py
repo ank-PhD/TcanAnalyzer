@@ -14,7 +14,8 @@ Locations = {'dump':{
                     'raw': os.path.join(base_folder_name, 'outputs/raw.png'),
                     'log': os.path.join(base_folder_name, 'outputs/log.png'),
                     'grad': os.path.join(base_folder_name, 'outputs/grad.png'),
-                    'plate': os.path.join(base_folder_name, 'outputs/plate.png')
+                    'plate': os.path.join(base_folder_name, 'outputs/plate.png'),
+                    'hjt': os.path.join(base_folder_name, 'outputs/hjt.csv')
                     },
              'pad': os.path.join(base_folder_name, 'dumps/pad.dmp')
              }
