@@ -1,9 +1,3 @@
-"""
-Their job is to convert different input formats into a single format that maps a condition
- to a timeseries and plate stack.
-"""
-__author__ = 'ank'
-
 import os
 import numpy as np
 from csv import reader

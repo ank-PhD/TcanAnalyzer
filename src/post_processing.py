@@ -1,11 +1,10 @@
-__author__ = 'ank'
-
 import numpy as np
 import pickle
 from configs import Locations
 from itertools import product, combinations
 from string import ascii_uppercase
-from chiffatools.Linalg_routines import show_matrix_with_names, hierchical_clustering
+# TODO: remove the reference to chiffatools
+from chiffatools.linalg_routines import show_matrix_with_names, hierchical_clustering
 from pre_processer import group_plot
 from copy import deepcopy
 from matplotlib import pyplot as plt
@@ -15,7 +14,8 @@ current_stack = pickle.load(open(Locations['dump']['raw']))
 growth_speed, peak_growth = pickle.load(open(Locations['dump']['times']))
 pad = pickle.load(open(Locations['pad']))
 
-# TODO: refactor to disentangle the namespace
+# TODO: refactor to disentangle namespaces
+
 
 def compare_growth_curves(growth_curve1, growth_curve2):
     return np.sum(np.abs(growth_curve1 - growth_curve2))

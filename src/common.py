@@ -1,5 +1,3 @@
-__author__ = 'ank'
-
 import numpy as np
 from pprint import pprint
 from itertools import product

@@ -1,5 +1,3 @@
-__author__ = 'ank'
-
 import os
 import xlrd
 import numpy as np
@@ -34,13 +32,14 @@ tinit = time()
 mlb.rcParams['font.size'] = 10.0
 mlb.rcParams['figure.figsize'] = (30, 20)
 
-file_location = 'U:/ank/2015/TcanScreen/03.26.2015/OurTcan'
+file_location = 'L:Users/andrei/2015/TcanScreen/03.26.2015/OurTcan'
 file_name = 'Book1.xls'
-pad_location = 'U:/ank/2015/TcanScreen/03.26.2015'
+pad_location = 'L:Users/andrei/2015/TcanScreen/03.26.2015'
 pad_name = 'pad.xlsx'
 d_time = 15./60.
 
 time_map = defaultdict(int)
+
 
 def extract_plate(a1_coordinates, sheet, string=False):
     plate = np.zeros((8, 12))
@@ -89,7 +88,7 @@ def smooth_plate(plate, window):
     return re_plate
 
 
-def plot_growth(plates_stack, grad=False, dumpType=None, NoShow=False):
+def plot_growth(plates_stack, grad=False, dump_type=None, no_show=False):
     fig = plt.gcf()
     fig.canvas.set_window_title('min:%s, max:%s, total points: %s' % (np.min(plates_stack),
                                                                       np.max(plates_stack),
@@ -121,12 +120,12 @@ def plot_growth(plates_stack, grad=False, dumpType=None, NoShow=False):
                 tick.label.set_fontsize(10)
                 tick.label.set_rotation('vertical')
 
-    if dumpType in ['raw', 'log', 'grad']:
-        pickle.dump(plates_stack, open(Locations['dump'][dumpType], 'w'))
-        plt.savefig(Locations['output'][dumpType], dpi=300)
-        if dumpType == 'grad':
+    if dump_type in ['raw', 'log', 'grad']:
+        pickle.dump(plates_stack, open(Locations['dump'][dump_type], 'w'))
+        plt.savefig(Locations['output'][dump_type], dpi=300)
+        if dump_type == 'grad':
             pickle.dump((speeds, times), open(Locations['dump']['times'], 'w'))
-    if NoShow:
+    if no_show:
         plt.clf()
     else:
         plt.show()
@@ -145,24 +144,24 @@ def group_plot(plates_stack, zoomlist):
         # plt.clf()
 
 
-def analyse(plates_stack, zoomlist, NoShow=False):
+def analyse(plates_stack, zoom_list, no_show=False):
     if intermediate_show:
-        plot_growth(plates_stack, dumpType='raw', NoShow=NoShow)
+        plot_growth(plates_stack, dump_type='raw', no_show=no_show)
     reference_std = np.std(plates_stack[:, 0, 0])*2
     print reference_std
     log_stack = np.log10(plates_stack)/np.log10(2)
     for i, j in product(range(0, 8), range(0, 12)):
         log_stack[:, i, j] = log_stack[:, i, j] - np.mean(log_stack[range(0, 3), i, j])
     if intermediate_show:
-        plot_growth(log_stack, dumpType='log', NoShow=NoShow)
+        plot_growth(log_stack, dump_type='log', no_show=no_show)
     grad_stack = np.zeros(log_stack.shape)
     for i, j in product(range(0, 8), range(0, 12)):
         grad_stack[:, i, j] = np.gradient(gf_1d(log_stack[:, i, j], 2))
     if intermediate_show:
-        plot_growth(grad_stack, True, dumpType='grad', NoShow=NoShow)
-    group_plot(plates_stack, zoomlist)
-    group_plot(log_stack, zoomlist)
-    group_plot(grad_stack, zoomlist)
+        plot_growth(grad_stack, True, dump_type='grad', no_show=no_show)
+    group_plot(plates_stack, zoom_list)
+    group_plot(log_stack, zoom_list)
+    group_plot(grad_stack, zoom_list)
 
 
 def correct(plate, position, injections):
@@ -388,4 +387,4 @@ if __name__ == "__main__":
                 # [(5, 1), (4, 3), (5, 3)],
                 # [(2, 6), (6, 6), (3, 7), (4, 7), (1, 2), (2, 2)],
                 ]
-    analyse(plate_3D_array, zlist, NoShow=True)
+    analyse(plate_3D_array, zlist, no_show=True)
